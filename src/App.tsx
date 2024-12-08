@@ -1,17 +1,20 @@
-import React, { useState } from 'react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import { Header } from './components/Header';
-import { TimeInput } from './components/TimeInput';
-import { EventDetails } from './components/EventDetails';
-import { TimeWindows } from './components/TimeWindows';
-import { Dashboard } from './components/Dashboard';
+import React from 'react';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { Home } from './pages/Home';
+import { Login } from './pages/Login';
+import { Register } from './pages/Register';
 import { PlanningPage } from './pages/PlanningPage';
-import { motion } from 'framer-motion';
-import { getTimeWindows } from './utils/dateUtils';
-import type { EventTime } from './types';
+import { Dashboard } from './components/Dashboard';
+import { TimeWindows } from './components/TimeWindows';
+import { EventDetails } from './components/EventDetails';
+import { TimeInput } from './components/TimeInput';
+import { Header } from './components/Header';
 
-function HomePage() {
-  const [eventTime, setEventTime] = useState<EventTime | null>(() => {
+function AppPage() {
+  const [eventTime, setEventTime] = React.useState<{
+    arrival: Date;
+    departure: Date;
+  } | null>(() => {
     const saved = sessionStorage.getItem('eventTime');
     if (saved) {
       const { arrival, departure } = JSON.parse(saved);
@@ -23,12 +26,21 @@ function HomePage() {
     return null;
   });
 
-  const [timeWindows, setTimeWindows] = useState<{
+  const [timeWindows, setTimeWindows] = React.useState<{
     preEventWindow: { start: Date; end: Date } | null;
     postEventWindow: { start: Date; end: Date } | null;
   } | null>(() => {
     if (eventTime) {
-      return getTimeWindows(eventTime.arrival, eventTime.departure);
+      return {
+        preEventWindow: {
+          start: new Date(eventTime.arrival.getTime() - 3 * 60 * 60 * 1000),
+          end: eventTime.arrival
+        },
+        postEventWindow: {
+          start: eventTime.departure,
+          end: new Date(eventTime.departure.getTime() + 3 * 60 * 60 * 1000)
+        }
+      };
     }
     return null;
   });
@@ -36,22 +48,24 @@ function HomePage() {
   const handleTimeSubmit = (arrival: Date, departure: Date) => {
     const newEventTime = { arrival, departure };
     setEventTime(newEventTime);
-    const windows = getTimeWindows(arrival, departure);
+    const windows = {
+      preEventWindow: {
+        start: new Date(arrival.getTime() - 3 * 60 * 60 * 1000),
+        end: arrival
+      },
+      postEventWindow: {
+        start: departure,
+        end: new Date(departure.getTime() + 3 * 60 * 60 * 1000)
+      }
+    };
     setTimeWindows(windows);
-    
-    // Save to sessionStorage
     sessionStorage.setItem('eventTime', JSON.stringify(newEventTime));
   };
 
   return (
     <div className="min-h-screen bg-dark-950">
       <Header />
-      <motion.main 
-        className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8"
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-      >
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <EventDetails />
         <TimeInput 
           onTimeSubmit={handleTimeSubmit}
@@ -65,17 +79,13 @@ function HomePage() {
           />
         )}
         {timeWindows && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.2 }}
-          >
+          <div className="mt-6">
             <Dashboard
               timeWindow={timeWindows.preEventWindow || timeWindows.postEventWindow!}
             />
-          </motion.div>
+          </div>
         )}
-      </motion.main>
+      </div>
     </div>
   );
 }
@@ -84,8 +94,12 @@ function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<HomePage />} />
+        <Route path="/" element={<Home />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/cadastro" element={<Register />} />
+        <Route path="/app" element={<AppPage />} />
         <Route path="/planning" element={<PlanningPage />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
   );
